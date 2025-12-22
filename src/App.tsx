@@ -5,12 +5,8 @@ import "./App.css";
 
 function App() {
   const [msg, setMsg] = useState("Waiting for command...");
-
-  async function testEngine() {
-    setMsg("Asking Rust...");
-    const response = await invoke("test_polars_connection");
-    setMsg(response as string);
-  }
+  const [currentFile, setCurrentFile] = useState("")
+  const [query, setQuery] = useState("SELECT * FROM data LIMIT 5");
 
   async function openFile() {
     try {
@@ -21,41 +17,69 @@ function App() {
 
       if (!file) return;
 
-      setMsg(`Reading file: ${file}...`);
-      
-      // Send the path to Rust
-      const result = await invoke("load_csv", { path: file });
-      setMsg(result as string);
+      // SAVE THE PATH: We store it in state so 'runQuery' can use it.
+      setCurrentFile(file as string);
+      setMsg(`File Selected: ${file}\nReady to Query.`);
       
     } catch (e) {
       setMsg(`Error: ${e}`);
     }
   }
+  async function runQuery() {
+    if (!currentFile) {
+      setMsg("Please open a CSV file first.");
+      return;
+    }
+    setMsg("running query...");
+    const result = await invoke("query_csv", {path: currentFile, query: query});
+    setMsg(result as string);
+   }
 
   return (
-    <div className="container">
-      <h1>Data Agent Desktop</h1>
+<div className="container" style={{padding: "20px"}}>
+      <h1>Data Agent: SQL Engine </h1>
       
-      <div className="row">
-        <button onClick={testEngine}>
-          Ignite Engine 🚀
-        </button>
+      {/*The File Loader */}
+      <div className="row" style={{marginBottom: "20px"}}>
+        <button onClick={openFile}> Open CSV File</button>
+        <span style={{marginLeft: "10px", fontSize: "12px", color: "#888"}}>
+            {currentFile ? "File Loaded " : "No file selected"}
+        </span>
+      </div>
 
-        <button onClick={openFile} style={{marginLeft: "10px"}}>
-          Open CSV File
+      {/* The Query Box */}
+      <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
+        <label style={{textAlign: "left"}}>SQL Query (Table name is <b>'data'</b>):</label>
+        <textarea 
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            rows={3}
+            style={{
+                width: "100%", 
+                padding: "10px", 
+                fontFamily: "monospace",
+                background: "#2a2a2a",
+                color: "#fff",
+                border: "1px solid #444"
+            }}
+        />
+        <button onClick={runQuery} style={{alignSelf: "flex-start"}}>
+            Run Query
         </button>
       </div>
 
+      {/* The Results Console */}
+      <h3 style={{textAlign: "left", marginTop: "20px"}}>Results:</h3>
       <pre style={{ 
         textAlign: "left", 
-        background: "#f4f4f4", 
-        padding: "10px", 
+        background: "#1e1e1e", 
+        color: "#00ff00", 
+        padding: "15px", 
         borderRadius: "8px", 
-        color: "black", 
         overflow: "auto", 
         maxHeight: "400px", 
-        marginTop: "20px",
-        whiteSpace: "pre-wrap"
+        whiteSpace: "pre-wrap", 
+        fontFamily: "Consolas, 'Courier New', monospace"
       }}>
         {msg}
       </pre>
