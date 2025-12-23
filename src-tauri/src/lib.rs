@@ -88,7 +88,7 @@ let lazy_frame_result = match extension {
                 .finish()
         }
     };
-
+    
     match lazy_frame_result {
         Ok(lf) => {
             ctx.register("data", lf);

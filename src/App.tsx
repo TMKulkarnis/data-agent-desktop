@@ -12,7 +12,7 @@ function App() {
     try {
       const file = await open({
         multiple: false,
-        filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+        filters: [{ name: 'CSV Files', extensions: ['csv','json', 'parquet', 'xlsx', 'xls', 'tsv'] }]
       });
 
       if (!file) return;
@@ -31,7 +31,7 @@ function App() {
       return;
     }
     setMsg("running query...");
-    const result = await invoke("query_csv", {path: currentFile, query: query});
+    const result = await invoke("query_table", {path: currentFile, query: query});
     setMsg(result as string);
    }
 
@@ -41,7 +41,7 @@ function App() {
       
       {/*The File Loader */}
       <div className="row" style={{marginBottom: "20px"}}>
-        <button onClick={openFile}> Open CSV File</button>
+        <button onClick={openFile}> Open file</button>
         <span style={{marginLeft: "10px", fontSize: "12px", color: "#888"}}>
             {currentFile ? "File Loaded " : "No file selected"}
         </span>
