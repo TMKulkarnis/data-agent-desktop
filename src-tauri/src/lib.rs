@@ -1,6 +1,8 @@
 use tauri::command;
 use polars::{prelude::*, sql::SQLContext};
 use std::fs::File;
+use std::iter::Scan;
+use std::path::Path;
 
 #[command]
 fn test_polars_connection() -> String {
@@ -17,7 +19,7 @@ fn test_polars_connection() -> String {
 }
 
 #[command]
-fn load_csv(path: String) -> String {
+fn load_file(path: String) -> String {
     // TRACE 1: Did Rust get the message?
     println!("DEBUG: 1. Rust received path: '{}'", path);
 
@@ -53,36 +55,65 @@ fn load_csv(path: String) -> String {
 }
 
 #[command]
-fn query_csv(path: String, query: String) -> String {
-    let mut ctx= SQLContext::new();
+fn query_table(path: String, query: String) -> String {
+    let mut ctx = SQLContext::new();
+    let p = Path::new(&path);
 
-    let lazy_frame = LazyCsvReader::new(PlPath::new(&path))
-        .with_has_header(true)
-        .finish();
-    match lazy_frame {
+    let extension = p.extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("csv");
+
+let lazy_frame_result = match extension {
+        "csv" => {
+            LazyCsvReader::new(PlPath::new(&path))
+                .with_has_header(true)
+                .finish()
+        },
+        "json" | "jsonl" => {
+            LazyJsonLineReader::new(PlPath::new(&path))
+                .finish()
+        },
+        "parquet" => {
+            LazyFrame::scan_parquet(PlPath::new(&path), ScanArgsParquet::default())
+        },
+        "tsv" => {
+            LazyCsvReader::new(PlPath::new(&path))
+                .with_separator(b'\t') 
+                .with_has_header(true)
+                .finish()
+        },
+        _ => {// Default to CSV if unknown
+            LazyCsvReader::new(PlPath::new(&path))
+                .with_has_header(true)
+                .finish()
+        }
+    };
+
+    match lazy_frame_result {
         Ok(lf) => {
             ctx.register("data", lf);
-
+            
             match ctx.execute(&query) {
                 Ok(lazy_result) => {
                     match lazy_result.collect() {
-                        Ok(df) => format!("Query executed successfully!\n\n{:?}", df),
-                        Err(e) => format!("Sql execution error: {}", e),
+                        Ok(df) => format!("Query Results [Format: {}]:\n\n{:?}", extension.to_uppercase(), df),
+                        Err(e) => format!("SQL Execution Error: {}", e),
                     }
                 },
-                Err(e) => format!("Sql parsing error: {}", e),
+                Err(e) => format!("SQL Parsing Error: {}", e),
             }
         },
-        Err(e) => format!("Error loading CSV: {}", e)
+        Err(e) => format!("Error opening file: {}", e),
     }
 }
+
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![test_polars_connection, load_csv,query_csv])
+        .invoke_handler(tauri::generate_handler![test_polars_connection, load_file,query_table])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
