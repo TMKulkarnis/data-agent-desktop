@@ -7,6 +7,7 @@ function App() {
   const [msg, setMsg] = useState("Waiting for command...");
   const [currentFile, setCurrentFile] = useState("")
   const [query, setQuery] = useState("SELECT * FROM data LIMIT 5");
+  const[Url, setUrl] = useState("");
 
   async function openFile() {
     try {
@@ -25,6 +26,8 @@ function App() {
       setMsg(`Error: ${e}`);
     }
   }
+
+  // Run the query
   async function runQuery() {
     if (!currentFile) {
       setMsg("Please open a CSV file first.");
@@ -33,6 +36,16 @@ function App() {
     setMsg("running query...");
     const result = await invoke("query_table", {path: currentFile, query: query});
     setMsg(result as string);
+   }
+
+   // Fetch file from URL and save locally
+   async function fetchUrl(){
+    if (!Url) return;
+    setMsg("Fetching file from URL...");
+
+    const result = await invoke("load_url", {url: Url});
+    setCurrentFile(result as string);
+    setMsg(`File downloaded from URL and saved to: ${result}\nReady to Query.`);
    }
 
   return (
@@ -66,6 +79,23 @@ function App() {
         <button onClick={runQuery} style={{alignSelf: "flex-start"}}>
             Run Query
         </button>
+      </div>
+      <div style={{display: "flex", gap: "10px", marginBottom: "20px", width: "100%"}}>
+          <input 
+              onChange={(e) => setUrl(e.currentTarget.value)} 
+              placeholder="Paste Cloud Link (e.g. https://site.com/data.csv)" 
+              style={{
+                  flex: 2, 
+                  padding: "12px", 
+                  borderRadius: "8px", 
+                  border: "1px solid #555",
+                  backgroundColor: "#222",
+                  color: "white"
+              }}
+          />
+          <button onClick={fetchUrl} style={{flex: 1, backgroundColor: "#6C5CE7"}}>
+              Fetch URL
+          </button>
       </div>
 
       {/* The Results Console */}
